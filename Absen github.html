@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Absensi Sekolah</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; }
+        body { background-color: #f4f7f6; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { width: 100%; max-width: 480px; background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #333; margin-bottom: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-row { display: flex; gap: 10px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #444; font-size: 14px; }
+        input[type="text"], input[type="number"], input[type="password"], select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; outline: none; }
+        
+        .camera-box { width: 100%; height: 230px; background: #1a1a1a; border-radius: 8px; overflow: hidden; display: flex; justify-content: center; align-items: center; color: #aaa; margin-bottom: 10px; }
+        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        
+        .btn { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 15px; cursor: pointer; margin-top: 10px; }
+        .btn-cam { background: #007bff; }
+        .btn-sec { background: #6c757d; }
+        .btn-danger { background: #dc3545; }
+
+        .img-preview { width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; margin-top: 10px; display: none; border: 2px solid #28a745; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+        th { background-color: #007bff; color: white; }
+        .badge { padding: 3px 6px; border-radius: 4px; color: white; font-size: 11px; font-weight: bold; }
+        .bg-Hadir { background-color: #28a745; }
+        .bg-Izin { background-color: #ffc107; color: #000; }
+        .bg-Sakit { background-color: #dc3545; }
+        
+        .footer-link { text-align: center; margin-top: 18px; }
+        .footer-link a { color: #007bff; text-decoration: none; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- FORM MURID -->
+    <div id="view-murid">
+        <h2>Absensi Kehadiran Siswa</h2>
+        <form id="formAbsen">
+            
+            <div class="form-row">
+                <div class="form-group" style="flex: 1;">
+                    <label>No. Absen</label>
+                    <input type="number" id="noAbsen" placeholder="Contoh: 12" min="1" required>
+                </div>
+                <div class="form-group" style="flex: 2;">
+                    <label>Kelas</label>
+                    <input type="text" id="kelas" placeholder="Contoh: X TJKT 3" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Nama Lengkap</label>
+                <input type="text" id="nama" placeholder="Masukkan nama lengkap" required>
+            </div>
+
+            <div class="form-group">
+                <label>Keterangan Status</label>
+                <select id="status" required>
+                    <option value="Hadir">Hadir</option>
+                    <option value="Izin">Izin</option>
+                    <option value="Sakit">Sakit</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Foto Selfie</label>
+                <div class="camera-box">
+                    <video id="webcam" autoplay playsinline></video>
+                </div>
+                <button type="button" class="btn btn-cam" id="btnAksiKamera" onclick="mintaAksesKamera()">📷 Buka Kamera Live</button>
+                
+                <canvas id="canvasHidden" style="display:none;"></canvas>
+                <img id="imgPreview" class="img-preview" alt="Preview Foto">
+            </div>
+
+            <button type="submit" class="btn">Kirim Absen</button>
+        </form>
+
+        <div class="footer-link">
+            <a href="javascript:void(0)" onclick="bukaLoginAdmin()">🔒 Login Khusus Guru / Admin</a>
+        </div>
+    </div>
+
+    <!-- LOGIN GURU -->
+    <div id="view-login-admin" style="display: none;">
+        <h2>Login Admin / Guru</h2>
+        <div class="form-group">
+            <label>Password Admin</label>
+            <input type="password" id="passwordAdmin" placeholder="Masukkan password...">
+        </div>
+        <button type="button" class="btn" onclick="cekLogin()">Masuk</button>
+        <button type="button" class="btn btn-sec" onclick="kembaliKeMurid()">Kembali</button>
+    </div>
+
+    <!-- REKAP DATA ADMIN -->
+    <div id="view-admin-dashboard" style="display: none;">
+        <h2>Rekap Absensi Siswa</h2>
+        <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-danger" style="padding: 8px; font-size: 12px;" onclick="hapusSemuaData()">Hapus Semua Data</button>
+            <button type="button" class="btn btn-sec" style="padding: 8px; font-size: 12px;" onclick="kembaliKeMurid()">Keluar / Logout</button>
+        </div>
+        
+        <div style="overflow-x:auto; margin-top: 10px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>No.</th>
+                        <th>No. Absen</th>
+                        <th>Nama & Kelas</th>
+                        <th>Status</th>
+                        <th>Waktu</th>
+                        <th>Foto</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelRekap"></tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    var fotoBase64 = "";
+    var video = document.getElementById('webcam');
+    var isCameraActive = false;
+
+    function mintaAksesKamera() {
+        if (!isCameraActive) {
+            navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "user" },
+                audio: false
+            })
+            .then(function(stream) {
+                video.srcObject = stream;
+                isCameraActive = true;
+                var btn = document.getElementById('btnAksiKamera');
+                btn.innerHTML = "📸 Ambil Foto Selfie";
+                btn.style.background = "#28a745";
+            })
+            .catch(function(err) {
+                alert("Kamera diblokir! Buka file ini di Google Chrome dan berikan izin kamera.");
+            });
+        } else {
+            ambilFoto();
+        }
+    }
+
+    function ambilFoto() {
+        var canvas = document.getElementById('canvasHidden');
+        var ctx = canvas.getContext('2d');
+
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        var now = new Date();
+        var tgl = now.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+        var jam = now.toLocaleTimeString('id-ID');
+        var textTimestamp = "📅 " + tgl + " | ⏰ " + jam;
+
+        ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+        ctx.fillRect(10, canvas.height - 50, canvas.width - 20, 40);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = Math.max(16, Math.floor(canvas.height / 25)) + "px Arial";
+        ctx.fillText(textTimestamp, 25, canvas.height - 22);
+
+        fotoBase64 = canvas.toDataURL('image/jpeg', 0.8);
+
+        var preview = document.getElementById('imgPreview');
+        preview.src = fotoBase64;
+        preview.style.display = 'block';
+    }
+
+    document.getElementById('formAbsen').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        var noAbsen = document.getElementById('noAbsen').value;
+        var nama = document.getElementById('nama').value;
+        var kelas = document.getElementById('kelas').value;
+        var status = document.getElementById('status').value;
+
+        if (!fotoBase64) {
+            alert('Silakan ambil foto selfie terlebih dahulu!');
+            return;
+        }
+
+        var now = new Date();
+        var waktuKirim = now.toLocaleDateString('id-ID') + ' ' + now.toLocaleTimeString('id-ID');
+
+        var dataBaru = {
+            noAbsen: noAbsen,
+            waktu: waktuKirim,
+            nama: nama,
+            kelas: kelas,
+            status: status,
+            foto: fotoBase64
+        };
+
+        var riwayat = JSON.parse(localStorage.getItem('data_absensi_sekolah')) || [];
+        riwayat.push(dataBaru);
+        localStorage.setItem('data_absensi_sekolah', JSON.stringify(riwayat));
+
+        alert('Absen berhasil disimpan!');
+        
+        document.getElementById('formAbsen').reset();
+        document.getElementById('imgPreview').style.display = 'none';
+        fotoBase64 = "";
+    });
+
+    function bukaLoginAdmin() {
+        document.getElementById('view-murid').style.display = 'none';
+        document.getElementById('view-login-admin').style.display = 'block';
+    }
+
+    function kembaliKeMurid() {
+        document.getElementById('view-murid').style.display = 'block';
+        document.getElementById('view-login-admin').style.display = 'none';
+        document.getElementById('view-admin-dashboard').style.display = 'none';
+    }
+
+    function cekLogin() {
+        var pass = document.getElementById('passwordAdmin').value;
+        if (pass === "guru123") {
+            document.getElementById('view-login-admin').style.display = 'none';
+            document.getElementById('view-admin-dashboard').style.display = 'block';
+            document.getElementById('passwordAdmin').value = '';
+            tampilkanRekapAdmin();
+        } else {
+            alert('Password salah!');
+        }
+    }
+
+    function tampilkanRekapAdmin() {
+        var tbody = document.getElementById('tabelRekap');
+        tbody.innerHTML = '';
+
+        var riwayat = JSON.parse(localStorage.getItem('data_absensi_sekolah')) || [];
+
+        if (riwayat.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Belum ada data absensi.</td></tr>';
+            return;
+        }
+
+        riwayat.forEach(function(item, index) {
+            var tr = document.createElement('tr');
+            tr.innerHTML = 
+                '<td>' + (index + 1) + '</td>' +
+                '<td><b>' + item.noAbsen + '</b></td>' +
+                '<td><b>' + item.nama + '</b><br><small>' + item.kelas + '</small></td>' +
+                '<td><span class="badge bg-' + item.status + '">' + item.status + '</span></td>' +
+                '<td><small>' + item.waktu + '</small></td>' +
+                '<td><img src="' + item.foto + '" style="width: 45px; border-radius: 4px;"></td>';
+            tbody.appendChild(tr);
+        });
+    }
+
+    function hapusSemuaData() {
+        if (confirm('Hapus seluruh riwayat absen?')) {
+            localStorage.removeItem('data_absensi_sekolah');
+            tampilkanRekapAdmin();
+        }
+    }
+</script>
+
+</body>
+</html>
